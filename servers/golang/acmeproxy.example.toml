@@ -23,7 +23,7 @@ domains = { "*.apps.example.org" = "cloudflare" } # every name below apps.exampl
 # the table name. The other keys are its settings, named after its JSON fields.
 [providers.default]
 provider = "hetzner"
-api_token = "abc...xyz"
+api_token = "abc...xyz" # or api_token = "${{ env.HETZNER_TOKEN }}" to read the environment
 
 [providers.cloudflare] # provider = "cloudflare" is implied
 api_token = "abc...xyz"

@@ -63,7 +63,9 @@ is in servers/golang/readme.md .
 
 ### Configuration
 
-The configuration is given as toml.
+The configuration is given as toml. String values may contain
+`${{ env.NAME }}`, which is replaced by the environment variable `NAME`, and
+`${{$}}`, which is replaced by a literal `${{`.
 
 Example TOML:
 

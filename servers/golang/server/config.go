@@ -37,12 +37,28 @@ type Config struct {
 	Providers map[string]map[string]any `toml:"providers"`
 }
 
-// ParseConfig parses a TOML configuration, rejecting unknown keys. The
+// ParseConfig parses a TOML configuration, rejecting unknown keys. String
+// values may contain ${{ env.NAME }} expressions (see expand). The
 // ACMEPROXY_BIND, ACMEPROXY_PORT, ACMEPROXY_SIGNATURE_EXPIRATION and
 // ACMEPROXY_CLOCK_DRIFT environment variables take precedence over the file.
 func ParseConfig(data string) (*Config, error) {
+	// Expand the generic structure, then decode that into Config, so that
+	// interpolation applies to every value and Config keeps its strict
+	// decoding.
+	var generic map[string]any
+	if _, err := toml.Decode(data, &generic); err != nil {
+		return nil, err
+	}
+	if err := interpolate(generic); err != nil {
+		return nil, err
+	}
+	var expanded bytes.Buffer
+	if err := toml.NewEncoder(&expanded).Encode(generic); err != nil {
+		return nil, err
+	}
+
 	var cfg Config
-	md, err := toml.Decode(data, &cfg)
+	md, err := toml.Decode(expanded.String(), &cfg)
 	if err != nil {
 		return nil, err
 	}

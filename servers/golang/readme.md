@@ -28,6 +28,7 @@ services:
     ports:
       - "9095:9095"
     environment:
+      HETZNER_TOKEN: ${HETZNER_TOKEN}
       ACMEPROXY_CONFIG: |
         [[client]]
         keys = { foo = "MCowBQYDK2VwAyEA1ZrIrT14+NvwBBFsBT06tFvA43/DHEVrnvsa0CzCR4c=" }
@@ -38,15 +39,20 @@ services:
         domains = { "bar.example.com" = "hetzner" }
 
         [providers.hetzner]
-        api_token = "${HETZNER_API_TOKEN}"
+        api_token = "$${{ env.HETZNER_TOKEN }}"
 ```
 
 `.env`, next to `compose.yaml`, which Compose reads to fill in
-`${HETZNER_API_TOKEN}`:
+`${HETZNER_TOKEN}`, the container's `HETZNER_TOKEN` variable:
 
 ```
-HETZNER_API_TOKEN=your-hetzner-cloud-api-token
+HETZNER_TOKEN=your-hetzner-cloud-api-token
 ```
+
+The server replaces `${{ env.HETZNER_TOKEN }}` with that variable (see
+[Interpolation](#interpolation)). Compose has its own `${...}` syntax, so the
+leading `$` is doubled to `$$` to pass the server's `${{` through unchanged.
+In a file that Compose does not process, write `api_token = "${{ env.HETZNER_TOKEN }}"`.
 
 ```bash
 docker compose up -d
@@ -121,6 +127,23 @@ entry may manage every domain of that entry.
 `[providers.<name>]`:
 * `provider`: the provider type. It defaults to `<name>`.
 * The provider's settings, under its JSON field names.
+
+### Interpolation
+
+Every string value in the configuration, at any depth, may contain:
+
+* `${{ env.NAME }}`, which is replaced by the environment variable `NAME`. A
+  variable that is not set is an error, while an empty one gives an empty
+  string.
+* `${{$}}`, which is replaced by a literal `${{`.
+
+```toml
+[providers.hetzner]
+api_token = "${{ env.HETZNER_TOKEN }}"
+```
+
+Keys are not interpolated, and text that was substituted is not interpolated
+again.
 
 Run the server behind HTTPS, and keep `Host` and the path unchanged in any
 reverse proxy.
