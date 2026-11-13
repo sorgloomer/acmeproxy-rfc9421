@@ -1,0 +1,13 @@
+# Binaries (anchored, so source directories like clients/cli-go are not ignored)
+/acmeproxy
+/acmeproxy.exe
+/cli-go
+/cli-go.exe
+/caddy
+/caddy.exe
+
+# Local configuration and keys made by keygen.sh
+acmeproxy.toml
+*.pem
+*.hex
+*.pub

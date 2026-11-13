@@ -1,0 +1,28 @@
+[server]
+# bind = "127.0.0.1"         # default: all interfaces
+port = 9095
+# tls_cert = "cert.pem"     # serve HTTPS directly
+# tls_key = "key.pem"
+# signature_expiration = "5m"
+# clock_drift = "30s"
+# record_ttl = "60s"
+
+# The table name is the client's keyid. pubkey is the base64 SPKI public key
+# (keygen.sh writes it); its type sets the algorithm: Ed25519, ECDSA P-256 or RSA.
+[clients.servera]
+pubkey = "MCowBQYDK2VwAyEA3Bpi8xtsP7FfilGiUgcmPF2HMgoTOxi3paZd/du1IYc=" # hege@asgard
+domains = { "servicea.example.com" = "default", "serviceb.example.com" = "default" }
+
+[clients.serverb]
+pubkey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZ0bRmzJSmy9k9CkMocI2QcPUe3SI7AwsSzDO0LE7tS0u6Z7baZznC7Uryy2aErwO8iYepF1TGwAcKtfcqRK5xQ=="
+domains = { "*.apps.example.org" = "cloudflare" } # every name below apps.example.org
+
+# "provider" picks a libdns provider compiled into the binary; the other keys
+# are its settings, named after its JSON fields.
+[providers.default]
+provider = "hetzner"
+api_token = "abc...xyz"
+
+[providers.cloudflare]
+provider = "cloudflare"
+api_token = "abc...xyz"
