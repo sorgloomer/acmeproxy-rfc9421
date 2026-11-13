@@ -157,9 +157,9 @@ func TestClients(t *testing.T) {
 
 	var cfg strings.Builder
 	for _, c := range clients {
-		fmt.Fprintf(&cfg, "[clients.%s]\npubkey = %q\ndomains = { \"%s.example.com\" = \"mem\" }\n", c.name, c.pubkey, strings.ToLower(c.name))
+		fmt.Fprintf(&cfg, "[[client]]\nkeys = { %s = %q }\ndomains = { \"%s.example.com\" = \"memory\" }\n", c.name, c.pubkey, strings.ToLower(c.name))
 	}
-	cfg.WriteString("[providers.mem]\nprovider = \"memory\"\n")
+	cfg.WriteString("[providers.memory]\n") // the provider type defaults to the table name
 	parsed, err := server.ParseConfig(cfg.String())
 	if err != nil {
 		t.Fatal(err)

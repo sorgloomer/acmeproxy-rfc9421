@@ -26,7 +26,7 @@ Signature-Input: sig1=("@method" "@authority" "@path" "content-type" "content-di
   `content-type` and `content-digest`.
 * `created` (required): accepted when no older than `signature_expiration`
   (default 5 minutes) and no further in the future than `clock_drift` (default 30 seconds).
-* `keyid` (required): the client's `[clients.<keyid>]` name on the server.
+* `keyid` (required): the name of the client's key in the `keys` of a `[[client]]` entry on the server.
 * `alg` (required): fixed by the type of the client's key:
 
   | Key type | `alg` |

@@ -26,12 +26,14 @@ type Config struct {
 		ClockDrift          time.Duration `toml:"clock_drift"`          // how far "created" may be in the future
 		RecordTTL           time.Duration `toml:"record_ttl"`
 	} `toml:"server"`
-	Clients map[string]struct {
-		PubKey  string            `toml:"pubkey"`  // base64 DER SubjectPublicKeyInfo (SPKI)
+	// Each [[client]] entry lets all of its keys manage all of its domains.
+	Clients []struct {
+		Keys    map[string]string `toml:"keys"`    // keyid -> base64 DER SubjectPublicKeyInfo (SPKI)
 		Domains map[string]string `toml:"domains"` // domain or *.domain -> provider name
-	} `toml:"clients"`
-	// Each provider table has a "provider" key naming the libdns provider
-	// type; the other keys are its settings, named after its JSON tags.
+	} `toml:"client"`
+	// Each provider table's optional "provider" key names the libdns provider
+	// type (default: the table name); the other keys are its settings, named
+	// after its JSON tags.
 	Providers map[string]map[string]any `toml:"providers"`
 }
 
@@ -140,10 +142,15 @@ func RegisteredProviders() []string {
 	return names
 }
 
-// newProvider instantiates a provider from its TOML table. libdns providers
-// describe their settings with JSON tags, so the table goes through JSON.
-func newProvider(table map[string]any) (DNSProvider, error) {
+// newProvider instantiates a provider from its [providers.<name>] table. The
+// type is the table's "provider" key, or name when that key is omitted.
+// libdns providers describe their settings with JSON tags, so the table goes
+// through JSON.
+func newProvider(name string, table map[string]any) (DNSProvider, error) {
 	typ, _ := table["provider"].(string)
+	if typ == "" {
+		typ = name
+	}
 	factory, ok := registry[typ]
 	if !ok {
 		return nil, fmt.Errorf("unknown provider type %q (available: %s)", typ, strings.Join(RegisteredProviders(), ", "))

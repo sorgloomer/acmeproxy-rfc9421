@@ -60,13 +60,19 @@ func spki(t *testing.T, key crypto.Signer) string {
 	return base64.StdEncoding.EncodeToString(der)
 }
 
-// newServer configures one client per key, named after its index.
-func newServer(t *testing.T, keys ...crypto.Signer) (*Server, *fakeProvider) {
+// newServer puts all keys, named c0, c1, ..., into one [[client]] entry for
+// a.example.com and *.wild.example.org. A second entry lets the returned key,
+// named "b", manage b.example.com. The provider type defaults to its name.
+func newServer(t *testing.T, keys ...crypto.Signer) (*Server, *fakeProvider, ed25519.PrivateKey) {
 	var b strings.Builder
+	b.WriteString("[[client]]\nkeys = {")
 	for i, k := range keys {
-		fmt.Fprintf(&b, "[clients.c%d]\npubkey = %q\ndomains = { \"a.example.com\" = \"p\", \"*.wild.example.org\" = \"p\" }\n", i, spki(t, k))
+		fmt.Fprintf(&b, " c%d = %q,", i, spki(t, k))
 	}
-	b.WriteString("[providers.p]\nprovider = \"fake\"\n")
+	b.WriteString(" }\ndomains = { \"a.example.com\" = \"fake\", \"*.wild.example.org\" = \"fake\" }\n")
+	_, bKey, _ := ed25519.GenerateKey(rand.Reader)
+	fmt.Fprintf(&b, "[[client]]\nkeys = { b = %q }\ndomains = { \"b.example.com\" = \"fake\" }\n", spki(t, bKey))
+	b.WriteString("[providers.fake]\n")
 	cfg, err := ParseConfig(b.String())
 	if err != nil {
 		t.Fatal(err)
@@ -75,14 +81,14 @@ func newServer(t *testing.T, keys ...crypto.Signer) (*Server, *fakeProvider) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return s, s.clients["c0"].domains["a.example.com"].dns.(*fakeProvider)
+	return s, s.clients["c0"].domains["a.example.com"].dns.(*fakeProvider), bKey
 }
 
 func TestPresentAndCleanup(t *testing.T) {
 	_, ed, _ := ed25519.GenerateKey(rand.Reader)
 	p256, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	rsaKey, _ := rsa.GenerateKey(rand.Reader, 2048)
-	s, fake := newServer(t, ed, p256, rsaKey)
+	s, fake, _ := newServer(t, ed, p256, rsaKey)
 	ts := httptest.NewServer(s)
 	defer ts.Close()
 
@@ -136,7 +142,7 @@ func signed(t *testing.T, key ed25519.PrivateKey, keyID, nonce, path, body strin
 func TestRequests(t *testing.T) {
 	_, key, _ := ed25519.GenerateKey(rand.Reader)
 	_, other, _ := ed25519.GenerateKey(rand.Reader)
-	s, _ := newServer(t, key)
+	s, _, bKey := newServer(t, key)
 	body := func(fqdn string) string { return `{"fqdn":"` + fqdn + `","value":"token"}` }
 	ok := body("_acme-challenge.a.example.com")
 
@@ -160,7 +166,9 @@ func TestRequests(t *testing.T) {
 		{"unknown keyid", signed(t, key, "nobody", "", "/present", ok), 401},
 		{"wrong key", signed(t, other, "c0", "", "/present", ok), 401},
 		{"tampered body", tampered, 401},
-		{"foreign domain", signed(t, key, "c0", "", "/present", body("_acme-challenge.b.example.com")), 403},
+		{"other entry's domain", signed(t, key, "c0", "", "/present", body("_acme-challenge.b.example.com")), 403},
+		{"key of other entry", signed(t, bKey, "b", "", "/present", ok), 403},
+		{"key of other entry, own domain", signed(t, bKey, "b", "", "/present", body("_acme-challenge.b.example.com")), 200},
 		{"wildcard parent", signed(t, key, "c0", "", "/present", body("_acme-challenge.wild.example.org")), 403},
 		{"not a challenge", signed(t, key, "c0", "", "/present", body("a.example.com")), 403},
 		{"bad value", signed(t, key, "c0", "", "/present", `{"fqdn":"_acme-challenge.a.example.com","value":"a\"b"}`), 400},
@@ -178,12 +186,15 @@ func TestConfigErrors(t *testing.T) {
 	_, key, _ := ed25519.GenerateKey(rand.Reader)
 	p384, _ := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	client := func(pub, domains string) string {
-		return fmt.Sprintf("[clients.a]\npubkey = %q\ndomains = { %s }\n[providers.p]\nprovider = \"fake\"\n", pub, domains)
+		return fmt.Sprintf("[[client]]\nkeys = { a = %q }\ndomains = { %s }\n[providers.p]\nprovider = \"fake\"\n", pub, domains)
 	}
 	for want, cfg := range map[string]string{
 		"unknown configuration key": "[server]\nlisten_addr = \":1\"",
 		"base64 SPKI":               client("not base64!", `"a.com" = "p"`),
-		"pubkey":                    client("AAAA", `"a.com" = "p"`),
+		`key "a"`:                   client("AAAA", `"a.com" = "p"`),
+		"no keys":                   "[[client]]\ndomains = { \"a.com\" = \"p\" }\n[providers.p]\nprovider = \"fake\"\n",
+		"used more than once":       client(spki(t, key), `"a.com" = "p"`) + "[[client]]\nkeys = { a = \"" + spki(t, key) + "\" }\n",
+		`unknown provider type "q"`: client(spki(t, key), `"a.com" = "q"`) + "[providers.q]\n",
 		"unsupported key":           client(spki(t, p384), `"a.com" = "p"`),
 		"undefined provider":        client(spki(t, key), `"a.com" = "q"`),
 		"invalid domain":            client(spki(t, key), `"a..com" = "p"`),

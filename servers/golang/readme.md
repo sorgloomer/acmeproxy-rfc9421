@@ -29,16 +29,15 @@ services:
       - "9095:9095"
     environment:
       ACMEPROXY_CONFIG: |
-        [clients.foo]
-        pubkey = "MCowBQYDK2VwAyEA1ZrIrT14+NvwBBFsBT06tFvA43/DHEVrnvsa0CzCR4c="
+        [[client]]
+        keys = { foo = "MCowBQYDK2VwAyEA1ZrIrT14+NvwBBFsBT06tFvA43/DHEVrnvsa0CzCR4c=" }
         domains = { "foo.example.com" = "hetzner" }
 
-        [clients.bar]
-        pubkey = "MCowBQYDK2VwAyEAqu/kRCOWvA0CsS/rkiQyCIwpPoxa0w/oHjcZ1OGp8So="
+        [[client]]
+        keys = { bar = "MCowBQYDK2VwAyEAqu/kRCOWvA0CsS/rkiQyCIwpPoxa0w/oHjcZ1OGp8So=" }
         domains = { "bar.example.com" = "hetzner" }
 
         [providers.hetzner]
-        provider = "hetzner"
         api_token = "${HETZNER_API_TOKEN}"
 ```
 
@@ -53,8 +52,8 @@ HETZNER_API_TOKEN=your-hetzner-cloud-api-token
 docker compose up -d
 ```
 
-Each client creates its key pair with its own `keygen.sh`. The `.pub` file
-goes into the client's `pubkey`.
+Each client creates its key pair with its own `keygen.sh`. The `.pub` file's
+contents go into `keys`, under the client's `KEY_ID`.
 
 ## Build
 
@@ -111,13 +110,16 @@ Setting both `ACMEPROXY_CONFIG` and `ACMEPROXY_CONFIG_FILE` is an error. See
 | `tls_cert`, `tls_key` | | unset, which means plain HTTP |
 | `record_ttl` | | `60s` |
 
-`[clients.<keyid>]`:
-* `pubkey`: the client's public key as base64 SPKI, as written by `keygen.sh`.
+`[[client]]`, one entry per group of keys that share domains. Every key of an
+entry may manage every domain of that entry.
+* `keys`: maps a keyid to a base64 SPKI public key, as written by
+  `keygen.sh`. The keyid is the client's `KEY_ID`, and may appear only once
+  in the whole configuration.
 * `domains`: maps a domain, or `*.domain` for everything below it, to a
   provider.
 
 `[providers.<name>]`:
-* `provider`: the provider type.
+* `provider`: the provider type. It defaults to `<name>`.
 * The provider's settings, under its JSON field names.
 
 Run the server behind HTTPS, and keep `Host` and the path unchanged in any

@@ -23,7 +23,7 @@ COPY --from=build /go/bin/cli-go /usr/local/bin/
 ```
 
 `traefik-<hostname>.pem` is the PKCS#8 private key (`KEY_PATH`). `traefik-<hostname>.pub` goes into
-the server config as `pubkey` of `[clients.traefik]`.
+the server config as `keys = { traefik = "<contents>" }` of a `[[client]]` entry.
 
 ## Configure
 

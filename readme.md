@@ -30,12 +30,11 @@ clients/caddy/keygen.sh ed25519 servera   # writes servera-<hostname>.pem and .p
 `acmeproxy.toml`:
 
 ```toml
-[clients.servera]
-pubkey = "MCowBQYDK2VwAyEA..."            # contents of servera-<hostname>.pub
-domains = { "servicea.example.com" = "default" }
+[[client]]
+keys = { servera = "MCowBQYDK2VwAyEA..." }   # contents of servera-<hostname>.pub
+domains = { "servicea.example.com" = "hetzner" }
 
-[providers.default]
-provider = "hetzner"
+[providers.hetzner]
 api_token = "..."
 ```
 

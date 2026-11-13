@@ -68,12 +68,12 @@ The configuration is given as toml.
 Example TOML:
 
 ```toml
-[clients.servera]
-pubkey = "MCowBQYDK2VwAyEA3Bpi8xtsP7FfilGiUgcmPF2HMgoTOxi3paZd/du1IYc=" # base64 SPKI public key of hege@asgard; its type specifies the expected algo
-domains = { "servicea.example.com" = "default", "serviceb.example.com" = "default" }
+# Every key of a [[client]] entry may manipulate every domain of that entry.
+[[client]]
+keys = { servera = "MCowBQYDK2VwAyEA3Bpi8xtsP7FfilGiUgcmPF2HMgoTOxi3paZd/du1IYc=" } # keyid = base64 SPKI public key of hege@asgard; its type specifies the expected algo
+domains = { "servicea.example.com" = "hetzner", "serviceb.example.com" = "hetzner" }
 
-[providers.default]
-provider = "hetzner"
+[providers.hetzner] # the provider type defaults to the table name; set provider = "..." to override
 api_token = "abc...xyz" # provider settings use the libdns provider's json field names
 ```
 

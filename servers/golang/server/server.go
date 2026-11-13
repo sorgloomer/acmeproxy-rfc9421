@@ -57,7 +57,7 @@ type provider struct {
 func New(cfg *Config) (*Server, error) {
 	providers := map[string]*provider{}
 	for name, table := range cfg.Providers {
-		dns, err := newProvider(table)
+		dns, err := newProvider(name, table)
 		if err != nil {
 			return nil, fmt.Errorf("providers.%s: %w", name, err)
 		}
@@ -67,39 +67,53 @@ func New(cfg *Config) (*Server, error) {
 		return nil, errors.New("no clients configured")
 	}
 	s := &Server{cfg: cfg, clients: map[string]*client{}, nonces: map[string]time.Time{}}
-	for name, cc := range cfg.Clients {
-		der, err := base64.StdEncoding.DecodeString(cc.PubKey)
-		if err != nil {
-			return nil, fmt.Errorf("clients.%s: pubkey must be base64 SPKI: %w", name, err)
-		}
-		pub, err := x509.ParsePKIXPublicKey(der)
-		if err != nil {
-			return nil, fmt.Errorf("clients.%s: pubkey: %w", name, err)
-		}
-		alg, err := shared.Algorithm(pub)
-		if err != nil {
-			return nil, fmt.Errorf("clients.%s: %w", name, err)
-		}
-		verifier, err := shared.NewVerifier(pub, httpsign.NewVerifyConfig().
-			SetKeyID(name).
-			SetAllowedAlgs([]string{alg}). // makes "alg" mandatory
-			SetNotOlderThan(cfg.Server.SignatureExpiration).
-			SetNotNewerThan(cfg.Server.ClockDrift))
-		if err != nil {
-			return nil, fmt.Errorf("clients.%s: %w", name, err)
-		}
-		c := &client{verifier: verifier, domains: map[string]*provider{}}
+	for i, cc := range cfg.Clients {
+		domains := map[string]*provider{} // shared by all keys of this entry
 		for domain, pname := range cc.Domains {
 			if !domainRE.MatchString(strings.TrimPrefix(domain, "*.")) {
-				return nil, fmt.Errorf("clients.%s: invalid domain %q", name, domain)
+				return nil, fmt.Errorf("client[%d]: invalid domain %q", i, domain)
 			}
-			if c.domains[domain] = providers[pname]; c.domains[domain] == nil {
-				return nil, fmt.Errorf("clients.%s: domain %q uses undefined provider %q", name, domain, pname)
+			if domains[domain] = providers[pname]; domains[domain] == nil {
+				return nil, fmt.Errorf("client[%d]: domain %q uses undefined provider %q", i, domain, pname)
 			}
 		}
-		s.clients[name] = c
+		if len(cc.Keys) == 0 {
+			return nil, fmt.Errorf("client[%d]: no keys", i)
+		}
+		for keyID, pubkey := range cc.Keys {
+			if s.clients[keyID] != nil {
+				return nil, fmt.Errorf("client[%d]: keyid %q is used more than once", i, keyID)
+			}
+			verifier, err := newVerifier(keyID, pubkey, cfg)
+			if err != nil {
+				return nil, fmt.Errorf("client[%d]: key %q: %w", i, keyID, err)
+			}
+			s.clients[keyID] = &client{verifier: verifier, domains: domains}
+		}
 	}
 	return s, nil
+}
+
+// newVerifier parses a base64 SPKI public key and returns a verifier pinned
+// to keyID and the key's algorithm.
+func newVerifier(keyID, pubkey string, cfg *Config) (*httpsign.Verifier, error) {
+	der, err := base64.StdEncoding.DecodeString(pubkey)
+	if err != nil {
+		return nil, fmt.Errorf("must be base64 SPKI: %w", err)
+	}
+	pub, err := x509.ParsePKIXPublicKey(der)
+	if err != nil {
+		return nil, err
+	}
+	alg, err := shared.Algorithm(pub)
+	if err != nil {
+		return nil, err
+	}
+	return shared.NewVerifier(pub, httpsign.NewVerifyConfig().
+		SetKeyID(keyID).
+		SetAllowedAlgs([]string{alg}). // makes "alg" mandatory
+		SetNotOlderThan(cfg.Server.SignatureExpiration).
+		SetNotNewerThan(cfg.Server.ClockDrift))
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

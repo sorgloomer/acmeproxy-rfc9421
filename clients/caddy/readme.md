@@ -23,7 +23,7 @@ xcaddy build --with github.com/sorgloomer/acmeproxy-rfc9421/clients/caddy \
 ```
 
 `caddy-<hostname>.pem` is the PKCS#8 private key, used as `KEY_PATH` or `key_path`.
-`caddy-<hostname>.pub` goes into the server config as `pubkey` of `[clients.caddy]`.
+`caddy-<hostname>.pub` goes into the server config as `keys = { caddy = "<contents>" }` of a `[[client]]` entry.
 
 ## Configure
 

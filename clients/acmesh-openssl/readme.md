@@ -17,7 +17,7 @@ curl -fsSL -o ~/.acme.sh/dnsapi/dns_acmeproxy_rfc9421.sh \
 ```
 
 `servera-<hostname>.pem` is the PKCS#8 private key. `servera-<hostname>.pub` goes into the server
-config as `pubkey` of `[clients.servera]`.
+config as `keys = { servera = "<contents>" }` of a `[[client]]` entry.
 
 ## Use
 

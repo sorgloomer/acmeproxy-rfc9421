@@ -7,22 +7,23 @@ port = 9095
 # clock_drift = "30s"
 # record_ttl = "60s"
 
-# The table name is the client's keyid. pubkey is the base64 SPKI public key
-# (keygen.sh writes it); its type sets the algorithm: Ed25519, ECDSA P-256 or RSA.
-[clients.servera]
-pubkey = "MCowBQYDK2VwAyEA3Bpi8xtsP7FfilGiUgcmPF2HMgoTOxi3paZd/du1IYc=" # hege@asgard
+# Each [[client]] entry lets every key in "keys" manage every domain in
+# "domains". keys maps a keyid (what the client signs with, KEY_ID) to its
+# base64 SPKI public key, as written by keygen.sh. The key type sets the
+# algorithm: Ed25519, ECDSA P-256 or RSA. A keyid may appear only once.
+[[client]]
+keys = { servera = "MCowBQYDK2VwAyEA3Bpi8xtsP7FfilGiUgcmPF2HMgoTOxi3paZd/du1IYc=" } # hege@asgard
 domains = { "servicea.example.com" = "default", "serviceb.example.com" = "default" }
 
-[clients.serverb]
-pubkey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZ0bRmzJSmy9k9CkMocI2QcPUe3SI7AwsSzDO0LE7tS0u6Z7baZznC7Uryy2aErwO8iYepF1TGwAcKtfcqRK5xQ=="
+[[client]] # two keys, e.g. a host and its replacement, sharing the same domains
+keys = { serverb = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZ0bRmzJSmy9k9CkMocI2QcPUe3SI7AwsSzDO0LE7tS0u6Z7baZznC7Uryy2aErwO8iYepF1TGwAcKtfcqRK5xQ==", serverb-backup = "MCowBQYDK2VwAyEAIpw3l8RJao7da3B4JITjbMhz6QSHtiNNrB+CwImyRG4=" }
 domains = { "*.apps.example.org" = "cloudflare" } # every name below apps.example.org
 
-# "provider" picks a libdns provider compiled into the binary; the other keys
-# are its settings, named after its JSON fields.
+# "provider" picks a libdns provider compiled into the binary and defaults to
+# the table name. The other keys are its settings, named after its JSON fields.
 [providers.default]
 provider = "hetzner"
 api_token = "abc...xyz"
 
-[providers.cloudflare]
-provider = "cloudflare"
+[providers.cloudflare] # provider = "cloudflare" is implied
 api_token = "abc...xyz"

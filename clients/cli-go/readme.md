@@ -23,7 +23,7 @@ CGO_ENABLED=0 go install github.com/sorgloomer/acmeproxy-rfc9421/clients/cli-go@
 ```
 
 `servera-<hostname>.pem` is the PKCS#8 private key. `servera-<hostname>.pub` goes into the server
-config as `pubkey` of `[clients.servera]`.
+config as `keys = { servera = "<contents>" }` of a `[[client]]` entry.
 
 ## Configure
 
